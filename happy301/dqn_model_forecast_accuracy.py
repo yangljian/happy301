@@ -1,6 +1,6 @@
 from MyNet import MyNet
 import numpy as np
-from workload_env import WorkloadEnv
+from workload_simulate_env import WorkloadEnv
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 

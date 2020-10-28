@@ -1,9 +1,8 @@
 from RL_brain import DeepQNetwork
-from workload_env2 import WorkloadEnv as WorkloadEnv
-from workload_env import WorkloadEnv as WorkloadEnv2
-from MyNet import MyNet
+from workload_train_env import WorkloadEnv as WorkloadEnv
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
 
 
 def run_this(env, RL, e):
@@ -21,7 +20,7 @@ def run_this(env, RL, e):
             # 经验存放池存储经验
             RL.store_transition(observation, action, reward, observation_)
 
-            if (step > 500) and (step % 30 == 0):
+            if step > 500 and step % 10 == 0:
                 # RL学习经验，更新参数
                 RL.learn()
 
@@ -33,14 +32,14 @@ def run_this(env, RL, e):
                 break
             step += 1
     # end of game
-    print('finish train')
+    # print('finish train')
     RL.reset_variables()
     # 保存网络参数
 
 
 def cal_accuracy():
     ret = []
-    for no in range(1, 13):
+    for no in range(1, 2):
         # 1.获取指定步数差距的数据集
         datas = pd.read_csv('datas/vm_gap/vmGap' + str(no) + '_data.csv', header=None)
         length = len(datas)
@@ -51,16 +50,22 @@ def cal_accuracy():
             # 1）对每个类型数据，获取初始状态、目标状态，并通过初始状态调用一次DQN模型
             row = datas.iloc[i, 0:14]
             s_init = np.array(row, dtype=float).reshape(1, 14)
-            # tmp = np.array(s_init).copy()
-            # min_max = MinMaxScaler(feature_range=(0, 1))
-            # tmp = min_max.fit_transform(tmp.reshape(-1, 1))
-            # tmp = np.array(tmp).squeeze()
-            # print(my_net.get_eval(s_init))
-            a = np.argmax(RL.get_eval(s_init), axis=1)
-            vm_next = WorkloadEnv2.step2(s_init, a)
+            tmp = np.array(s_init).copy()
+            min_max = MinMaxScaler(feature_range=(0, 1))
+            tmp = min_max.fit_transform(tmp.reshape(-1, 1))
+            tmp = np.array(tmp).squeeze()
+            # print(str(no) + ":" + str(i) + "----")
+            # print(RL.get_eval(tmp))
+            q_value = RL.get_eval(tmp)
+            a1 = np.argmax(q_value, axis=1)
+            q_value[0][a1] = 0
+            a2 = np.argmax(q_value, axis=1)
+            vm_next1 = WorkloadEnv.step2(s_init, a1)
+            vm_next2 = WorkloadEnv.step2(s_init, a2)
             vm_obj = np.array(datas.iloc[i, 14:17], dtype=float).reshape(1, 3)
-            vm_gap = np.absolute(vm_next - vm_obj)
-            if np.sum(vm_gap) <= no:
+            vm_gap1 = np.absolute(vm_next1 - vm_obj)
+            vm_gap2 = np.absolute(vm_next2 - vm_obj)
+            if np.sum(vm_gap1) <= no or np.sum(vm_gap2) <= no:
                 correct = correct + 1
             #     print('√')
             # else:
@@ -74,21 +79,21 @@ def cal_accuracy():
 
 
 datas = pd.read_csv('datas/runtime_dataset.csv', header=None)
-datas = np.array(datas)
-length = len(datas)
-np.random.shuffle(datas)
-datas = pd.DataFrame(datas)
+# datas = np.array(datas)
+# length = len(datas)
+# np.random.shuffle(datas)
+# datas = pd.DataFrame(datas)
 cost_his = []
 RL = DeepQNetwork(6, 14,
-                      learning_rate=0.01,
+                      learning_rate=0.000001,
                       reward_decay=0.8,
                       e_greedy=0.9,
-                      replace_target_iter=50,
+                      replace_target_iter=100,
                       memory_size=500,
                       output_graph=True,
                       cost_his=cost_his
                       )
-for i in range(0, 10):
+for i in range(0, 1300):
     row = datas.iloc[i, :]
     data = np.array(row, dtype=float).reshape(1, 17)
     env = WorkloadEnv(data)
@@ -103,8 +108,11 @@ for i in range(0, 10):
     # 训练agent
     run_this(env, RL, 2)
     # 一轮训练结束后，评估agent的准确性：分别计算12个步长测试数据的准确性
+    # if i % 10 == 0:
     ret = cal_accuracy()
     print(ret)
+    if min(ret) > 0.8:
+        break
     # print(ret)
 
 RL.save_params()
