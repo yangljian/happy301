@@ -39,7 +39,7 @@ class WorkloadEnv:
     # 动作执行，返回新的状态
     def step(self, action):
         s_ = np.array(self.currentState, np.float32)
-        reward = 0
+        reward = -10
         done = False
         if action == 0:   # a1
             if s_[10] < 8:

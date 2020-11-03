@@ -20,7 +20,7 @@ class WorkloadEnv:
         self.objectVmPlan = np.array(np.array(workload_env)[0, 2:5], np.float)
 
         # self.vmPlan = np.random.randint(0, 8, (1, 3)).squeeze()
-        self.vmPlan = [0, 6, 5]
+        self.vmPlan = [5, 5, 7]
         workload_vm = np.insert(self.initWorkloadState.squeeze()[0:2], 2, self.vmPlan)
         qos = self.svm.predict(workload_vm.reshape(1, -1))
         qos = sigmoid(qos)

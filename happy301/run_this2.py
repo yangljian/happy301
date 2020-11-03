@@ -39,7 +39,7 @@ def run_this(env, RL, e):
 
 def cal_accuracy():
     ret = []
-    for no in range(1, 2):
+    for no in range(1, 13):
         # 1.获取指定步数差距的数据集
         datas = pd.read_csv('datas/vm_gap/vmGap' + str(no) + '_data.csv', header=None)
         length = len(datas)
@@ -55,17 +55,23 @@ def cal_accuracy():
             tmp = min_max.fit_transform(tmp.reshape(-1, 1))
             tmp = np.array(tmp).squeeze()
             # print(str(no) + ":" + str(i) + "----")
-            # print(RL.get_eval(tmp))
+            print(RL.get_eval(tmp))
             q_value = RL.get_eval(tmp)
             a1 = np.argmax(q_value, axis=1)
             q_value[0][a1] = 0
             a2 = np.argmax(q_value, axis=1)
+            q_value[0][a2] = 0
+            a3 = np.argmax(q_value, axis=1)
             vm_next1 = WorkloadEnv.step2(s_init, a1)
             vm_next2 = WorkloadEnv.step2(s_init, a2)
+            vm_next3 = WorkloadEnv.step2(s_init, a3)
             vm_obj = np.array(datas.iloc[i, 14:17], dtype=float).reshape(1, 3)
             vm_gap1 = np.absolute(vm_next1 - vm_obj)
             vm_gap2 = np.absolute(vm_next2 - vm_obj)
-            if np.sum(vm_gap1) <= no or np.sum(vm_gap2) <= no:
+            vm_gap3 = np.absolute(vm_next3 - vm_obj)
+            if no - 3 <= 0 and (np.sum(vm_gap1) <= no or np.sum(vm_gap2) <= no or np.sum(vm_gap3) <= no):
+                correct = correct + 1
+            elif no - 3 > 0 and (np.sum(vm_gap1) <= no or np.sum(vm_gap2) <= no):
                 correct = correct + 1
             #     print('√')
             # else:
@@ -79,21 +85,21 @@ def cal_accuracy():
 
 
 datas = pd.read_csv('datas/runtime_dataset.csv', header=None)
-# datas = np.array(datas)
-# length = len(datas)
-# np.random.shuffle(datas)
-# datas = pd.DataFrame(datas)
+datas = np.array(datas)
+length = len(datas)
+np.random.shuffle(datas)
+datas = pd.DataFrame(datas)
 cost_his = []
 RL = DeepQNetwork(6, 14,
-                      learning_rate=0.000001,
-                      reward_decay=0.8,
+                      learning_rate=0.00001,
+                      reward_decay=0.99,
                       e_greedy=0.9,
                       replace_target_iter=100,
                       memory_size=500,
                       output_graph=True,
                       cost_his=cost_his
                       )
-for i in range(0, 1300):
+for i in range(0, 500):
     row = datas.iloc[i, :]
     data = np.array(row, dtype=float).reshape(1, 17)
     env = WorkloadEnv(data)
@@ -109,10 +115,10 @@ for i in range(0, 1300):
     run_this(env, RL, 2)
     # 一轮训练结束后，评估agent的准确性：分别计算12个步长测试数据的准确性
     # if i % 10 == 0:
-    ret = cal_accuracy()
-    print(ret)
-    if min(ret) > 0.8:
-        break
+    # ret = cal_accuracy()
+    # print(ret)
+    # if min(ret) > 0.8:
+    #     break
     # print(ret)
 
 RL.save_params()
